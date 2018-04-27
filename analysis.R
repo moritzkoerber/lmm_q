@@ -2,6 +2,7 @@
 library(lme4)
 library(afex)
 
+
 ##### one factor, categorical fixed effect 
 df1 <- read.csv2("one_factor_rm_cat.csv", header=T,dec=",")
 df1$situation <- factor(df1$situation)
@@ -12,10 +13,10 @@ summary(model)
 
 # lmer model, random intercept + random slope
 model <- lmer(measure ~ situation + (1+situation|id),df1)
-summary(model)
+summary(model) ## model unidentifiable
 
 
-##### one factor, contious fixed effect
+##### one factor, continuous fixed effect
 df2 <- read.csv2("one_factor_rm_cont.csv", header=T,dec=",")
 
 # fixed effect, random intercept
@@ -29,7 +30,7 @@ sig_x <- sd(df2$acceleration)
 df2$acceleration_s <- (df2$acceleration-mu_x)/sig_x # standardize predictor
 
 model <- lmer(delta_distance ~ acceleration_s + (1+acceleration_s|id),df2)
-summary(model)
+summary(model) ## identifiable model
 
 
 ##### two factors
@@ -41,10 +42,10 @@ df3$group<-factor(df3$group)
 model <- lmer(dv ~ group*stage+(1|id),df3)
 summary(model)
 
-# model, random intercept + random slope
+# model, random intercept + random slope per factor
 model <- lmer(dv ~ group*stage+(1+group|id)+(1+stage|id),df3)
-summary(model)
+summary(model) ## model unidentifiable
 
-#maximum model?
+#maximum model? random slope for interaction
 model <- lmer(dv ~ group*stage+(group*stage|id),df3)
-summary(model)
+summary(model) ## model unidentifiable

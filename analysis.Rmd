@@ -3,110 +3,72 @@ title: "LMM considerations"
 output:
   html_document:
     df_print: paged
+  pdf_document: default
 ---
 
-# One factor rm ANOVA
+# One factor rm ANOVA, categorical fixed effect 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 library(lme4)
 library(afex)
-library(ggplot2)
 
-## one factor
-df1 <- read.csv2("one_factor_rm.csv", header=T,dec=",")
+df1 <- read.csv2("one_factor_rm_cat.csv", header=T,dec=",")
+df1$situation <- factor(df1$situation)
 ```
+
+Model works fine with random intercept only:
 ```{r}
-### fixed effect, random intercept
-model_fe <- lmer(delta_distance ~ acceleration + (1|id),df1)
-summary(model_fe)
+# lmer model, random intercept
+model1 <- lmer(measure ~ situation + (1|id),df1)
+summary(model1)
 ```
 
 
+Adding a random slope makes it unidentifiable 
+```{r error = TRUE}
+# lmer model, random intercept + random slope
+model2 <- lmer(measure ~ situation + (1+situation|id),df1)
+```
+
+# Continuous predictor (fixed effect) works
+Adding a random slope works when the predictor is continuous
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 ### fixed effect, random intercept & slope
+df2 <- read.csv2("one_factor_rm_cont.csv", header=T,dec=",")
 # rescale predictor (otherwise conversion warning)
-mu_x <- mean(df1$acceleration)
-sig_x <- sd(df1$acceleration)
-df1$acceleration_s <- (df1$acceleration-mu_x)/sig_x # standardize predictor
+mu_x <- mean(df2$acceleration)
+sig_x <- sd(df2$acceleration)
+df2$acceleration_s <- (df2$acceleration-mu_x)/sig_x # standardize predictor
 ```
+
 ```{r}
-model <- lmer(delta_distance ~ acceleration_s + (1+acceleration_s|id),df1)
-summary(model)
+model3 <- lmer(delta_distance ~ acceleration_s + (1+acceleration_s|id),df2) #standardized predictor needed for convergence
+summary(model3)
 ```
+
+
+# two factor mixed anova
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
-#### PLOTS ####
-model_ns <- lmer(delta_distance ~ acceleration + (1+acceleration|id),df1)
-# df$acceleration2 <- df$acceleration
-# df$acceleration <- factor(df$acceleration, labels=c("424.62","607.39","780.3","1165"))
-# plot_model <- lm(delta_distance ~ acceleration,df)
-# predicted_df <- predict.lm(plot_model,df$predicted)
-
-df1$id <- factor(df1$id)
-
-## convert slope and intercept to original scale
-# convert intercept (fixed) to original scale
-fixef(model)[1] - fixef(model)[2]*mu_x/sig_x 
-# compare with this value (from model fit on original values)
-fixef(model_ns)[1] 
-
-# convert individual random slopes
-rnd_slopes_2 <- (fixef(model)[2] + ranef(model)$id[,2])/sig_x
-# reference values from model fit on original values
-rnd_slopes_1 <- fixef(model_ns)[2] + ranef(model_ns)$id[,2] 
-#test
-rnd_slopes_2 - rnd_slopes_1
-plot(rnd_slopes_1, rnd_slopes_2); abline(a=0,b=1,lty=2)
-
-# convert individual random intercepts
-rnd_int_2 <- (fixef(model)[1] + ranef(model)$id[,1]) - (fixef(model)[2] + ranef(model)$id[,2])*mu_x/sig_x
-# reference values from model fit on original values
-rnd_int_1 <- fixef(model_ns)[1] + ranef(model_ns)$id[,1] 
-#test
-rnd_int_2 - rnd_int_1
-plot(rnd_int_1, rnd_int_2); abline(a=0,b=1,lty=2)
-
-intercepts <- rnd_int_2
-slopes <- rnd_slopes_2
-
-###
+df3 <- read.csv2("two_factor_rm.csv", header=T,dec=",")
+df3$stage<-factor(df3$stage)
+df3$group<-factor(df3$group)
 ```
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-p <- ggplot(df1, aes(x=acceleration,y=delta_distance))+
-  ylab("Change in distance [mm/s]")+
-  xlab("Acceleration [mm/s²]")+
-  # geom_line()+
-  geom_point(alpha=.65)+
-  # geom_jitter(width=0.4)+
-  geom_abline(slope=slopes, intercept=intercepts,alpha=.3)+
-  # geom_line(aes(x=df$acceleration,y=predicted_df),size=1,color="black")+
-  geom_abline(slope=mean(slopes), intercept=mean(intercepts),size=1.5,color="black")+
-  theme_bw()+
-  scale_x_continuous(limits = c(400,1200))+
-  theme(legend.position="none",
-        panel.grid.major = element_line(color = "white"), 
-        panel.grid.minor = element_line(color = "white"),
-        text=element_text(size=12,color="black")
-        )
-p
-```
-
-
-
-
-
-
-# three factor mixed anova
-Load data + packages:
-
+# model, random intercept 
+Random intercept only works:
 ```{r}
-df <- read.csv2("lmm.csv", header=T,dec=",")
-
-library(lme4)
-library(afex)
+model4 <- lmer(dv ~ group*stage+(1|id),df3)
+summary(model4)
 ```
 
-Fit model:
+# model, random intercept + random slope per factor
+This model is already unidentifiable
+```{r, error = TRUE}
+model5 <- lmer(dv ~ group*stage+(1+group|id)+(1+stage|id),df3)
+```
 
-model <- lmer(dv ~ group+age_group+stage)
-summary(model)
+#maximum model? random slope for interaction
+Also unidentifiable
+```{r,error = TRUE}
+model6 <- lmer(dv ~ group*stage+(group*stage|id),df3)
+```
